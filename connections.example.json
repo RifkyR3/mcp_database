@@ -1,0 +1,47 @@
+{
+  "connections": {
+    "postgres_example": {
+      "id": "postgres_example",
+      "engine": "postgres",
+      "host": "localhost",
+      "port": 5432,
+      "user": "your_pg_user",
+      "password": "your_pg_password",
+      "defaultDatabase": "postgres",
+      "description": "Contoh Server PostgreSQL",
+      "allowWrite": false,
+      "writeExceptions": ["INSERT", "UPDATE"],
+      "subConnections": [
+        {
+          "id": "app_db",
+          "database": "my_application_db",
+          "description": "Database Aplikasi Utama"
+        },
+        {
+          "id": "analytics_db",
+          "database": "my_analytics_db",
+          "description": "Database Analitik (Read Only)",
+          "allowWrite": false,
+          "writeExceptions": []
+        }
+      ]
+    },
+    "mysql_example": {
+      "id": "mysql_example",
+      "engine": "mysql",
+      "host": "localhost",
+      "port": 3306,
+      "user": "your_mysql_user",
+      "password": "your_mysql_password",
+      "defaultDatabase": "information_schema",
+      "description": "Contoh Server MySQL",
+      "subConnections": [
+        {
+          "id": "store_db",
+          "database": "ecommerce_db",
+          "description": "Database E-commerce"
+        }
+      ]
+    }
+  }
+}

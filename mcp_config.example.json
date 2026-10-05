@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "mcp_database": {
+      "command": "node",
+      "args": [
+        "path/to/mcp_database/dist/index.js",
+        "--databases=app_db,store_db",
+        "--write=false",
+        "--write-exceptions=INSERT,UPDATE"
+      ],
+      "env": {
+        "MCP_DB_CONFIG_PATH": "path/to/mcp_database/connections.json"
+      }
+    }
+  }
+}
