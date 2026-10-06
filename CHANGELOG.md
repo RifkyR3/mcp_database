@@ -4,6 +4,25 @@ All notable changes to the **MCP Database Server** project will be documented in
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-10-06
+
+### Added
+- **Strict Scope Enforcement for `ALLOWED_DATABASES`**:
+  - `db_list_connections`: Only lists permitted databases and host servers that contain permitted databases. Sanitizes `defaultDatabase` and active connection pools so unallowed databases are never exposed. Adds `filteredMode` and `allowedDatabases` metadata to tool responses.
+  - `db_discover_databases`: Filters discovered physical databases from host servers to strictly return permitted databases only.
+  - `db_sync_databases` & `npm run sync`: Crawler strictly syncs and adds allowed databases; non-allowed database entries on disk are preserved safely to prevent accidental configuration data loss.
+  - `resolveTarget`: Immediately rejects queries or connection attempts against restricted databases (`Access denied`). Sanitizes error messages so unallowed sub-connections are never leaked.
+  - `db_register_sub_connection`: Prevents dynamic runtime registration of restricted databases when running in filtered mode.
+  - Flexible `ALLOWED_DATABASES` parsing: Supports CLI flags (`--databases`, `--database`, `--dbs`, `--db`, `--filter`), environment variable formats (comma, semicolon, whitespace, JSON array `["db1", "db2"]`), and handles quoted values cleanly.
+- **Auto-Populate Bare Main Connections**:
+  - If a main connection has no pre-configured sub-connections, permitted databases are automatically mapped to that host.
+- **Dedicated CLI Runner for `db_list_connections`**:
+  - Added `npm run list` (`tsx src/list.ts`) script to inspect connections and test `ALLOWED_DATABASES` filter rules from the terminal with human-friendly and `--json` outputs.
+
+### Changed
+- **Sanitized Parameter Descriptions & Tests**:
+  - Replaced internal/local database names with generic placeholders (`app_db`, `postgres_main`, `mysql_main`) across tool schema parameter descriptions and unit test fixtures.
+
 ---
 
 ## [1.0.1] - 2026-10-06

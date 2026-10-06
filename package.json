@@ -1,6 +1,6 @@
 {
   "name": "mcp-database-server",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Multi-database MCP Server with Dynamic Connections and Main/Sub connection architecture",
   "type": "module",
   "main": "dist/index.js",
@@ -33,6 +33,7 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "sync": "tsx src/sync.ts",
+    "list": "tsx src/list.ts",
     "test": "tsx test/test-unit.ts",
     "test:integration": "tsx test/test-connection.ts",
     "test:write": "tsx test/test-write-rules.ts",

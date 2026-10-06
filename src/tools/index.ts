@@ -14,6 +14,7 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
     {},
     async () => {
       const connections = manager.listConnectionsSummary();
+      const allowedDbs = manager.getAllowedDatabases();
       return {
         content: [
           {
@@ -21,6 +22,8 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
             text: JSON.stringify(
               {
                 count: connections.length,
+                filteredMode: !!allowedDbs,
+                ...(allowedDbs ? { allowedDatabases: Array.from(allowedDbs) } : {}),
                 connections,
               },
               null,
@@ -39,12 +42,17 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
     'db_discover_databases',
     'Query the database server to discover all databases existing on a main connection host',
     {
-      mainId: z.string().describe('ID of the main connection (e.g. "uinja_postgres" or "usbi_mysql")'),
+      mainId: z.string().describe('ID of the main connection (e.g. "postgres_main" or "mysql_main")'),
     },
     async ({ mainId }) => {
       try {
         const adminAdapter = await manager.getAdminAdapter(mainId);
-        const databases = await adminAdapter.listDatabases();
+        const discovered = await adminAdapter.listDatabases();
+        const allowedDbs = manager.getAllowedDatabases();
+        const databases = allowedDbs
+          ? discovered.filter((db) => manager.isDatabaseAllowed(db))
+          : discovered;
+
         return {
           content: [
             {
@@ -52,6 +60,8 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
               text: JSON.stringify(
                 {
                   mainId,
+                  filteredMode: !!allowedDbs,
+                  ...(allowedDbs ? { allowedDatabases: Array.from(allowedDbs) } : {}),
                   totalDatabases: databases.length,
                   databases,
                 },
@@ -124,7 +134,7 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
         }
 
         if (persistToFile !== false) {
-          saveConfigFile(allMainConfigs);
+          saveConfigFile(allMainConfigs, manager.getAllowedDatabases());
         }
 
         return {
@@ -169,8 +179,8 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
       connectionId: z
         .string()
         .optional()
-        .describe('Sub-connection ID / alias (e.g. "uinja_eakademik") or composite ("mainId:db")'),
-      mainId: z.string().optional().describe('Main connection ID (e.g. "uinja_postgres")'),
+        .describe('Sub-connection ID / alias (e.g. "app_db") or composite ("mainId:db")'),
+      mainId: z.string().optional().describe('Main connection ID (e.g. "postgres_main")'),
       database: z.string().optional().describe('Target database name on the main connection server'),
       schema: z.string().optional().describe('Filter by schema (e.g. "public" for PostgreSQL)'),
     },
@@ -226,7 +236,7 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
       connectionId: z
         .string()
         .optional()
-        .describe('Sub-connection ID / alias (e.g. "uinja_eakademik") or composite ("mainId:db")'),
+        .describe('Sub-connection ID / alias (e.g. "app_db") or composite ("mainId:db")'),
       mainId: z.string().optional().describe('Main connection ID'),
       database: z.string().optional().describe('Target database name'),
       schema: z.string().optional().describe('Optional schema name'),
@@ -283,9 +293,9 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
       connectionId: z
         .string()
         .optional()
-        .describe('Sub-connection alias (e.g. "uinja_eakademik") or composite ("uinja_postgres:uinja_eakademik")'),
-      mainId: z.string().optional().describe('Main connection ID (e.g. "uinja_postgres")'),
-      database: z.string().optional().describe('Database name on the main server (e.g. "uinja_eakademik")'),
+        .describe('Sub-connection alias (e.g. "app_db") or composite ("postgres_main:app_db")'),
+      mainId: z.string().optional().describe('Main connection ID (e.g. "postgres_main")'),
+      database: z.string().optional().describe('Database name on the main server (e.g. "app_db")'),
       params: z.array(z.any()).optional().describe('Optional parameterized values for prepared statements'),
       maxRows: z.number().optional().describe('Max rows to return (default: 100)'),
     },
@@ -444,7 +454,7 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
               subConnections: s.subConnections,
             });
           }
-          saveConfigFile(map);
+          saveConfigFile(map, manager.getAllowedDatabases());
         }
 
         return {
@@ -485,6 +495,12 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
     },
     async (args) => {
       try {
+        if (manager.getAllowedDatabases() !== null && !manager.isDatabaseAllowed(args.database, args.id)) {
+          throw new Error(
+            `Access denied: Cannot register database "${args.database}". Allowed databases for this server: [${Array.from(manager.getAllowedDatabases()!).join(', ')}]`
+          );
+        }
+
         manager.registerSubConnection(args.mainId, {
           id: args.id,
           database: args.database,
@@ -507,7 +523,7 @@ export function registerDatabaseTools(server: McpServer, manager: ConnectionMana
               subConnections: s.subConnections,
             });
           }
-          saveConfigFile(map);
+          saveConfigFile(map, manager.getAllowedDatabases());
         }
 
         return {

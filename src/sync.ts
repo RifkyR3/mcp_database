@@ -11,13 +11,17 @@ async function runSync() {
 
   console.log('🔍 Starting Database Crawler & Sync...\n');
 
-  const { configs } = loadInitialConfig(false);
+  const { configs, allowedDatabases } = loadInitialConfig(false);
   if (configs.length === 0) {
     console.error('❌ No main connections configured in connections.json or environment.');
     process.exit(1);
   }
 
-  const manager = new ConnectionManager(configs);
+  if (allowedDatabases && allowedDatabases.size > 0) {
+    console.log(`🔒 Filtered mode active: [${Array.from(allowedDatabases).join(', ')}]\n`);
+  }
+
+  const manager = new ConnectionManager(configs, allowedDatabases);
   const allMainConfigs = manager.getAllMainConfigs();
 
   const targets: string[] = [];
@@ -63,7 +67,7 @@ async function runSync() {
   }
 
   // Save updated configurations back to connections.json
-  saveConfigFile(allMainConfigs);
+  saveConfigFile(allMainConfigs, allowedDatabases);
   console.log('\n💾 connections.json successfully updated!');
 
   await manager.closeAll();

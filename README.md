@@ -312,8 +312,9 @@ If `connections.json` contains multiple databases, but you only want to expose s
 ```
 
 **Benefits of filtering:**
-- AI Agents / MCP Clients only see the databases you permit (saving context window tokens).
-- Other databases outside the allowed list are automatically protected and query execution is rejected.
+- All tools and actions (e.g. `db_list_connections`, `db_discover_databases`) only list and expose permitted databases, saving context window tokens and preventing information leakage.
+- Database servers without any permitted databases are automatically hidden.
+- Other databases outside the allowed list are strictly protected: query execution, dynamic registration, and discovery are rejected.
 - Corresponding main connection credentials are still automatically resolved.
 
 ---
@@ -408,6 +409,27 @@ Invoke the `db_sync_databases` tool from your MCP client / AI Agent with paramet
   "removeMissing": false
 }
 ```
+
+---
+
+## 📋 Inspect Connections & Filtering (`db_list_connections`)
+
+You can inspect all configured connections, active pools, and test `ALLOWED_DATABASES` filter rules directly:
+
+### 1. Via Terminal / CLI
+```bash
+# Beautiful formatted console summary
+npm run list
+
+# Test with database filter flag
+npm run list -- --databases=app_db,store_db
+
+# Output exact JSON (identical to db_list_connections MCP tool)
+npm run list -- --json
+```
+
+### 2. Via MCP Tool
+Call `db_list_connections` from your AI Agent / MCP client.
 
 ---
 

@@ -30,9 +30,77 @@ export class ConnectionManager {
   }
 
   /**
+   * Check whether a database or sub-connection ID is allowed in the current scope
+   */
+  public isDatabaseAllowed(database: string, subId?: string): boolean {
+    if (this.allowedDatabases === null) {
+      return true;
+    }
+    return (
+      this.allowedDatabases.has(database) ||
+      (subId ? this.allowedDatabases.has(subId) : false)
+    );
+  }
+
+  /**
+   * Get the current set of allowed databases (or null if unrestricted)
+   */
+  public getAllowedDatabases(): Set<string> | null {
+    return this.allowedDatabases;
+  }
+
+  /**
    * Register or update a main connection
    */
   public registerMainConnection(config: MainConnectionConfig): void {
+    if (this.allowedDatabases !== null) {
+      const matchingSubs = (config.subConnections || []).filter(
+        (sub) => this.isDatabaseAllowed(sub.database, sub.id)
+      );
+
+      const isDefaultDbAllowed = !!(config.defaultDatabase && this.isDatabaseAllowed(config.defaultDatabase));
+
+      if (matchingSubs.length === 0 && !isDefaultDbAllowed) {
+        if (!config.subConnections || config.subConnections.length === 0) {
+          // Auto-populate allowed databases for this host
+          const autoSubs: SubConnectionConfig[] = Array.from(this.allowedDatabases).map((db) => ({
+            id: db,
+            database: db,
+            description: `Allowed database "${db}"`,
+          }));
+          const cloned: MainConnectionConfig = {
+            ...config,
+            defaultDatabase: autoSubs.length === 1 ? autoSubs[0].database : undefined,
+            subConnections: autoSubs,
+          };
+          this.mainConfigs.set(cloned.id, cloned);
+          for (const sub of autoSubs) {
+            this.registerSubConnection(cloned.id, sub);
+          }
+          return;
+        }
+        // Had subConnections, but none matched allowedDatabases -> do not register this host
+        return;
+      }
+
+      const effectiveDefaultDb = isDefaultDbAllowed
+        ? config.defaultDatabase
+        : (matchingSubs.length === 1 ? matchingSubs[0].database : undefined);
+
+      const filteredConfig: MainConnectionConfig = {
+        ...config,
+        defaultDatabase: effectiveDefaultDb,
+        subConnections: matchingSubs,
+      };
+
+      this.mainConfigs.set(filteredConfig.id, filteredConfig);
+
+      for (const sub of matchingSubs) {
+        this.registerSubConnection(filteredConfig.id, sub);
+      }
+      return;
+    }
+
     this.mainConfigs.set(config.id, config);
 
     // Register pre-configured sub-connections
@@ -47,6 +115,12 @@ export class ConnectionManager {
    * Register a sub-connection alias under a main connection
    */
   public registerSubConnection(mainId: string, sub: SubConnectionConfig): void {
+    if (this.allowedDatabases !== null && !this.isDatabaseAllowed(sub.database, sub.id)) {
+      throw new Error(
+        `Cannot register sub-connection "${sub.id}": Database "${sub.database}" is restricted. Allowed databases: [${Array.from(this.allowedDatabases).join(', ')}]`
+      );
+    }
+
     if (!this.mainConfigs.has(mainId)) {
       throw new Error(`Cannot register sub-connection: Main connection "${mainId}" not found`);
     }
@@ -94,6 +168,12 @@ export class ConnectionManager {
       resolvedSubId?: string,
       resolvedSubConfig?: SubConnectionConfig
     ): ResolvedTarget => {
+      if (this.allowedDatabases !== null && !this.isDatabaseAllowed(resolvedDb, resolvedSubId)) {
+        throw new Error(
+          `Access denied: Database "${resolvedDb}" is restricted. Allowed databases for this server: [${Array.from(this.allowedDatabases).join(', ')}]`
+        );
+      }
+
       const sub =
         resolvedSubConfig ||
         resolvedMainConfig.subConnections?.find(
@@ -122,6 +202,11 @@ export class ConnectionManager {
     // 1. Direct sub-connection alias lookup
     if (connectionId && this.subAliases.has(connectionId)) {
       const alias = this.subAliases.get(connectionId)!;
+      if (this.allowedDatabases !== null && !this.isDatabaseAllowed(alias.database, connectionId)) {
+        throw new Error(
+          `Access denied: Database "${alias.database}" (${connectionId}) is restricted. Allowed databases: [${Array.from(this.allowedDatabases).join(', ')}]`
+        );
+      }
       const mainConfig = this.mainConfigs.get(alias.mainId);
       if (!mainConfig) {
         throw new Error(`Main connection "${alias.mainId}" referenced by alias "${connectionId}" was not found`);
@@ -135,6 +220,12 @@ export class ConnectionManager {
       const [parsedMainId, ...rest] = connectionId.split(separator);
       const parsedDb = rest.join(separator);
 
+      if (this.allowedDatabases !== null && !this.isDatabaseAllowed(parsedDb)) {
+        throw new Error(
+          `Access denied: Database "${parsedDb}" is restricted. Allowed databases: [${Array.from(this.allowedDatabases).join(', ')}]`
+        );
+      }
+
       const mainConfig = this.mainConfigs.get(parsedMainId);
       if (!mainConfig) {
         throw new Error(`Main connection "${parsedMainId}" in composite ID "${connectionId}" not found`);
@@ -145,13 +236,20 @@ export class ConnectionManager {
     // 3. ConnectionId matched directly with a main connection ID
     if (connectionId && this.mainConfigs.has(connectionId)) {
       const mainConfig = this.mainConfigs.get(connectionId)!;
-      const targetDb = database || mainConfig.defaultDatabase || (mainConfig.subConnections?.length === 1 ? mainConfig.subConnections[0].database : undefined);
+      const allowedSubs = (mainConfig.subConnections || []).filter(
+        (s) => this.isDatabaseAllowed(s.database, s.id)
+      );
+      const isDefaultAllowed = !!(mainConfig.defaultDatabase && this.isDatabaseAllowed(mainConfig.defaultDatabase));
+      const targetDb =
+        database ||
+        (isDefaultAllowed ? mainConfig.defaultDatabase : undefined) ||
+        (allowedSubs.length === 1 ? allowedSubs[0].database : undefined);
 
       if (!targetDb) {
-        const availableSubs = (mainConfig.subConnections || []).map((s) => s.id).join(', ');
+        const availableSubs = allowedSubs.map((s) => s.id).join(', ');
         throw new Error(
           `Main connection "${connectionId}" exists, but no target database was specified. ` +
-          `Provide "database" parameter or use one of the sub-connections: [${availableSubs}]`
+          `Provide "database" parameter or use one of the allowed sub-connections: [${availableSubs}]`
         );
       }
 
@@ -166,13 +264,20 @@ export class ConnectionManager {
         throw new Error(`Main connection "${mainId}" not found. Available main connections: [${available}]`);
       }
 
-      const targetDb = database || mainConfig.defaultDatabase || (mainConfig.subConnections?.length === 1 ? mainConfig.subConnections[0].database : undefined);
+      const allowedSubs = (mainConfig.subConnections || []).filter(
+        (s) => this.isDatabaseAllowed(s.database, s.id)
+      );
+      const isDefaultAllowed = !!(mainConfig.defaultDatabase && this.isDatabaseAllowed(mainConfig.defaultDatabase));
+      const targetDb =
+        database ||
+        (isDefaultAllowed ? mainConfig.defaultDatabase : undefined) ||
+        (allowedSubs.length === 1 ? allowedSubs[0].database : undefined);
 
       if (!targetDb) {
-        const availableSubs = (mainConfig.subConnections || []).map((s) => `${s.id} (${s.database})`).join(', ');
+        const availableSubs = allowedSubs.map((s) => `${s.id} (${s.database})`).join(', ');
         throw new Error(
           `Main connection "${mainId}" requires a database name. ` +
-          `Please provide the "database" parameter or choose from sub-connections: [${availableSubs}]`
+          `Please provide the "database" parameter or choose from allowed sub-connections: [${availableSubs}]`
         );
       }
 
@@ -182,7 +287,14 @@ export class ConnectionManager {
     // 5. Fallback: If only 1 main connection exists and database or sub connection is unique
     if (this.mainConfigs.size === 1) {
       const [singleMainId, singleMainConfig] = Array.from(this.mainConfigs.entries())[0];
-      const targetDb = database || singleMainConfig.defaultDatabase || (singleMainConfig.subConnections?.length === 1 ? singleMainConfig.subConnections[0].database : undefined);
+      const allowedSubs = (singleMainConfig.subConnections || []).filter(
+        (s) => this.isDatabaseAllowed(s.database, s.id)
+      );
+      const isDefaultAllowed = !!(singleMainConfig.defaultDatabase && this.isDatabaseAllowed(singleMainConfig.defaultDatabase));
+      const targetDb =
+        database ||
+        (isDefaultAllowed ? singleMainConfig.defaultDatabase : undefined) ||
+        (allowedSubs.length === 1 ? allowedSubs[0].database : undefined);
 
       if (targetDb) {
         return finishResolve(singleMainId, singleMainConfig, targetDb);
@@ -190,7 +302,10 @@ export class ConnectionManager {
     }
 
     const availableMains = Array.from(this.mainConfigs.keys()).join(', ');
-    const availableSubs = Array.from(this.subAliases.keys()).join(', ');
+    const availableSubs = Array.from(this.subAliases.entries())
+      .filter(([id, alias]) => this.isDatabaseAllowed(alias.database, id))
+      .map(([id]) => id)
+      .join(', ');
     throw new Error(
       `No valid connection specified. Please provide "connectionId" (alias or "main:db") or "mainId" with "database".\n` +
       `Available Main Connections: [${availableMains}]\n` +
@@ -209,9 +324,7 @@ export class ConnectionManager {
     const target = this.resolveTarget(params);
 
     if (this.allowedDatabases !== null) {
-      const isAllowed =
-        this.allowedDatabases.has(target.database) ||
-        (target.subConnectionId ? this.allowedDatabases.has(target.subConnectionId) : false);
+      const isAllowed = this.isDatabaseAllowed(target.database, target.subConnectionId);
 
       if (!isAllowed) {
         throw new Error(
@@ -241,8 +354,12 @@ export class ConnectionManager {
       throw new Error(`Main connection "${mainId}" not found`);
     }
 
+    const isDefaultDbAllowed = !!(mainConfig.defaultDatabase && this.isDatabaseAllowed(mainConfig.defaultDatabase));
+    const allowedSub = (mainConfig.subConnections || []).find((s) => this.isDatabaseAllowed(s.database, s.id));
+
     const defaultDb =
-      mainConfig.defaultDatabase ||
+      (isDefaultDbAllowed ? mainConfig.defaultDatabase : undefined) ||
+      (allowedSub ? allowedSub.database : undefined) ||
       (mainConfig.engine === 'postgres' ? 'postgres' : 'information_schema');
 
     const poolKey = `${mainId}::${defaultDb}::admin`;
@@ -280,17 +397,29 @@ export class ConnectionManager {
     }> = [];
 
     for (const [mainId, config] of this.mainConfigs.entries()) {
+      const subSummaries = (config.subConnections || [])
+        .filter((sub) => this.isDatabaseAllowed(sub.database, sub.id))
+        .map((sub) => ({
+          id: sub.id,
+          database: sub.database,
+          description: sub.description,
+          effectiveWriteRule: resolveEffectiveWriteRule(this.globalWriteRule, config, sub),
+          readOnly: sub.readOnly,
+        }));
+
+      const isDefaultDbAllowed = !!(config.defaultDatabase && this.isDatabaseAllowed(config.defaultDatabase));
+      const effectiveDefaultDb = isDefaultDbAllowed
+        ? config.defaultDatabase
+        : (subSummaries.length === 1 ? subSummaries[0].database : undefined);
+
+      if (this.allowedDatabases !== null && subSummaries.length === 0 && !effectiveDefaultDb) {
+        continue;
+      }
+
       const activePoolsForMain = Array.from(this.pools.keys())
         .filter((k) => k.startsWith(`${mainId}::`))
-        .map((k) => k.split('::')[1]);
-
-      const subSummaries = (config.subConnections || []).map((sub) => ({
-        id: sub.id,
-        database: sub.database,
-        description: sub.description,
-        effectiveWriteRule: resolveEffectiveWriteRule(this.globalWriteRule, config, sub),
-        readOnly: sub.readOnly,
-      }));
+        .map((k) => k.split('::')[1])
+        .filter((db) => this.isDatabaseAllowed(db));
 
       list.push({
         mainId,
@@ -298,7 +427,7 @@ export class ConnectionManager {
         host: config.host,
         port: config.port,
         user: config.user,
-        defaultDatabase: config.defaultDatabase,
+        defaultDatabase: effectiveDefaultDb,
         description: config.description,
         writeRule: resolveEffectiveWriteRule(this.globalWriteRule, config),
         subConnections: subSummaries,
@@ -355,6 +484,7 @@ export class ConnectionManager {
     const filteredDatabases = discoveredRaw.filter((db) => {
       if (userExcludes.has(db)) return false;
       if (shouldFilterSystem && defaultExcludes.includes(db)) return false;
+      if (this.allowedDatabases !== null && !this.isDatabaseAllowed(db)) return false;
       return true;
     });
 
@@ -390,9 +520,14 @@ export class ConnectionManager {
     if (options.removeMissing) {
       const discoveredSet = new Set(filteredDatabases);
       for (const sub of currentSubs) {
-        if (!discoveredSet.has(sub.database)) {
-          this.subAliases.delete(sub.id);
-          removedCount++;
+        if (this.isDatabaseAllowed(sub.database, sub.id)) {
+          if (!discoveredSet.has(sub.database)) {
+            this.subAliases.delete(sub.id);
+            removedCount++;
+          }
+        } else {
+          // Preserve unallowed sub-connections outside current filter
+          newSubList.push(sub);
         }
       }
     } else {

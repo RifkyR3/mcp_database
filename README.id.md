@@ -312,9 +312,10 @@ Jika `connections.json` memiliki banyak database, namun Anda hanya ingin mengeks
 ```
 
 **Keuntungan mode filter:**
-- AI Agent / MCP Client hanya melihat database yang Anda izinkan (menghemat token context).
-- Database lain di luar daftar otomatis terproteksi dan diblokir dari eksekusi query.
-- Main connection yang sesuai tetap otomatis digunakan.
+- Semua aksi dan tool (misal `db_list_connections`, `db_discover_databases`) hanya menampilkan dan memuat database yang diizinkan saja, menghemat token context serta mencegah kebocoran informasi database lain.
+- Server database yang tidak memiliki database yang diizinkan otomatis disembunyikan.
+- Database lain di luar daftar diproteksi secara ketat: eksekusi query, registrasi dinamis, dan discovery database lain akan ditolak.
+- Kredensial main connection yang sesuai tetap otomatis digunakan.
 
 ---
 
@@ -408,6 +409,27 @@ Panggil tool `db_sync_databases` dari MCP client / AI Agent dengan parameter:
   "removeMissing": false
 }
 ```
+
+---
+
+## 📋 Cek Daftar Koneksi & Filter (`db_list_connections`)
+
+Anda dapat melihat ringkasan semua koneksi yang terdaftar, status pool, dan menguji filter `ALLOWED_DATABASES` secara langsung:
+
+### 1. Lewat Terminal / CLI
+```bash
+# Ringkasan rapi di konsol terminal
+npm run list
+
+# Uji coba dengan filter database tertentu
+npm run list -- --databases=app_db,store_db
+
+# Tampilkan format raw JSON (persis seperti return tool MCP db_list_connections)
+npm run list -- --json
+```
+
+### 2. Lewat MCP Tool
+Panggil tool `db_list_connections` dari AI Agent / MCP client Anda.
 
 ---
 

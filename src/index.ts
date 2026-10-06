@@ -18,7 +18,7 @@ async function main() {
 
   const server = new McpServer({
     name: 'mcp-database-server',
-    version: '1.0.0',
+    version: '1.0.2',
   });
 
   registerDatabaseTools(server, manager);

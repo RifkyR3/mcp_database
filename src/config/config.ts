@@ -1,9 +1,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { AppConfig, MainConnectionConfig } from './types.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const packageRoot = path.resolve(__dirname, '../..');
+
+// Load .env from process.cwd() or fallback to package root
 dotenv.config();
+const packageEnv = path.resolve(packageRoot, '.env');
+if (fs.existsSync(packageEnv)) {
+  dotenv.config({ path: packageEnv });
+}
 
 const DEFAULT_CONFIG_FILE = 'connections.json';
 
@@ -11,25 +21,68 @@ export function getConfigFilepath(): string {
   if (process.env.MCP_DB_CONFIG_PATH) {
     return path.resolve(process.env.MCP_DB_CONFIG_PATH);
   }
-  return path.resolve(process.cwd(), DEFAULT_CONFIG_FILE);
+  const cwdPath = path.resolve(process.cwd(), DEFAULT_CONFIG_FILE);
+  if (fs.existsSync(cwdPath)) {
+    return cwdPath;
+  }
+  const packagePath = path.resolve(packageRoot, DEFAULT_CONFIG_FILE);
+  if (fs.existsSync(packagePath)) {
+    return packagePath;
+  }
+  return cwdPath;
 }
 
 export function getAllowedDatabases(): Set<string> | null {
   const allowed = new Set<string>();
 
-  // 1. Check CLI args: --databases=a,b or --dbs=a,b or --databases a,b
+  const cleanItem = (s: string): string => {
+    return s.trim().replace(/^['"]|['"]$/g, '');
+  };
+
+  const addItems = (val: string) => {
+    if (!val) return;
+    const trimmed = val.trim();
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          parsed.map((item) => cleanItem(String(item))).filter(Boolean).forEach((s) => allowed.add(s));
+          return;
+        }
+      } catch {
+        // Fall back to delimiter parsing
+      }
+    }
+
+    let parts: string[] = [];
+    if (trimmed.includes(',')) {
+      parts = trimmed.split(',');
+    } else if (trimmed.includes(';')) {
+      parts = trimmed.split(';');
+    } else if (trimmed.includes(' ')) {
+      parts = trimmed.split(/\s+/);
+    } else {
+      parts = [trimmed];
+    }
+
+    parts.map(cleanItem).filter(Boolean).forEach((s) => allowed.add(s));
+  };
+
+  // 1. Check CLI args: --databases=a,b or --database=a,b or --dbs=a,b or --db=a,b or --filter=a,b
   const args = process.argv.slice(2);
+  const flagPrefixes = ['--databases=', '--database=', '--dbs=', '--db=', '--filter='];
+  const standaloneFlags = ['--databases', '--database', '--dbs', '--db', '--filter'];
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg.startsWith('--databases=') || arg.startsWith('--dbs=') || arg.startsWith('--filter=')) {
-      const val = arg.split('=')[1];
-      if (val) {
-        val.split(',').map((s) => s.trim()).filter(Boolean).forEach((s) => allowed.add(s));
-      }
-    } else if (arg === '--databases' || arg === '--dbs' || arg === '--filter') {
+    const matchPrefix = flagPrefixes.find((p) => arg.startsWith(p));
+    if (matchPrefix) {
+      const val = arg.slice(matchPrefix.length);
+      addItems(val);
+    } else if (standaloneFlags.includes(arg)) {
       const nextArg = args[i + 1];
       if (nextArg && !nextArg.startsWith('--')) {
-        nextArg.split(',').map((s) => s.trim()).filter(Boolean).forEach((s) => allowed.add(s));
+        addItems(nextArg);
         i++;
       }
     }
@@ -38,7 +91,7 @@ export function getAllowedDatabases(): Set<string> | null {
   // 2. Check Environment variables
   const envVal = process.env.ALLOWED_DATABASES || process.env.SPECIFIC_DATABASES;
   if (envVal) {
-    envVal.split(',').map((s) => s.trim()).filter(Boolean).forEach((s) => allowed.add(s));
+    addItems(envVal);
   }
 
   return allowed.size > 0 ? allowed : null;
@@ -57,16 +110,33 @@ export function filterConfigByAllowedDatabases(
       (sub) => allowedDbs.has(sub.database) || allowedDbs.has(sub.id)
     );
 
-    // If main connection has matching sub-connections OR its defaultDatabase matches
+    const isDefaultDbAllowed = !!(main.defaultDatabase && allowedDbs.has(main.defaultDatabase));
+
     if (matchingSubs.length > 0) {
       filtered.push({
         ...main,
+        defaultDatabase: isDefaultDbAllowed
+          ? main.defaultDatabase
+          : (matchingSubs.length === 1 ? matchingSubs[0].database : undefined),
         subConnections: matchingSubs,
       });
-    } else if (main.defaultDatabase && allowedDbs.has(main.defaultDatabase)) {
+    } else if (isDefaultDbAllowed) {
       filtered.push({
         ...main,
         subConnections: [],
+      });
+    } else if (!main.subConnections || main.subConnections.length === 0) {
+      // Main connection had no sub-connections configured at all.
+      // Auto-populate allowed databases for this host so they can be accessed.
+      const autoSubs = Array.from(allowedDbs).map((db) => ({
+        id: db,
+        database: db,
+        description: `Allowed database "${db}"`,
+      }));
+      filtered.push({
+        ...main,
+        defaultDatabase: autoSubs.length === 1 ? autoSubs[0].database : undefined,
+        subConnections: autoSubs,
       });
     }
   }
@@ -151,12 +221,42 @@ export function loadInitialConfig(filterAllowed = true): {
   return { configs, allowedDatabases };
 }
 
-export function saveConfigFile(configs: Map<string, MainConnectionConfig>): void {
+export function saveConfigFile(
+  configs: Map<string, MainConnectionConfig>,
+  allowedDatabases: Set<string> | null = null
+): void {
   const filepath = getConfigFilepath();
-  const connectionsObj: Record<string, MainConnectionConfig> = {};
+  let existingConnections: Record<string, MainConnectionConfig> = {};
+
+  if (allowedDatabases && allowedDatabases.size > 0 && fs.existsSync(filepath)) {
+    try {
+      const content = fs.readFileSync(filepath, 'utf-8');
+      const parsed: AppConfig = JSON.parse(content);
+      if (parsed.connections && typeof parsed.connections === 'object') {
+        existingConnections = parsed.connections;
+      }
+    } catch {
+      // Ignore read error, proceed with direct overwrite
+    }
+  }
+
+  const connectionsObj: Record<string, MainConnectionConfig> = { ...existingConnections };
 
   for (const [id, config] of configs.entries()) {
-    connectionsObj[id] = config;
+    if (allowedDatabases && allowedDatabases.size > 0 && connectionsObj[id]) {
+      // Merge: keep existing subConnections from disk that are NOT in allowedDatabases
+      const existingSubs = connectionsObj[id].subConnections || [];
+      const preservedSubs = existingSubs.filter(
+        (sub) => !allowedDatabases.has(sub.database) && !allowedDatabases.has(sub.id)
+      );
+      connectionsObj[id] = {
+        ...connectionsObj[id],
+        ...config,
+        subConnections: [...preservedSubs, ...(config.subConnections || [])],
+      };
+    } else {
+      connectionsObj[id] = config;
+    }
   }
 
   const data: AppConfig = { connections: connectionsObj };
