@@ -4,6 +4,8 @@ node_modules/
 # Production build output
 dist/
 *.tsbuildinfo
+release-artifacts/
+RELEASE_NOTES.md
 
 # Sensitive local configurations & real credentials
 connections.json

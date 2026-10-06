@@ -58,6 +58,9 @@ jobs:
           fi
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
+      - name: Extract release notes from CHANGELOG.md
+        run: node .github/scripts/extract-changelog.js "${{ steps.release_tag.outputs.tag }}"
+
       - name: Package release archives
         run: |
           mkdir -p release-artifacts
@@ -70,6 +73,7 @@ jobs:
         with:
           tag_name: ${{ steps.release_tag.outputs.tag }}
           name: Release ${{ steps.release_tag.outputs.tag }}
+          body_path: RELEASE_NOTES.md
           generate_release_notes: true
           prerelease: ${{ github.event.inputs.prerelease || false }}
           files: |
