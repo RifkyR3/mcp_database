@@ -1,52 +1,110 @@
 # MCP Database Server (Node.js)
 
-MCP Server berbasis Node.js & TypeScript yang mendukung **Multi-Database (PostgreSQL & MySQL)** dengan arsitektur **Main Connection & Sub Connection (Dynamic Routing)**.
-
-Menggantikan setup lama yang membutuhkan banyak server terpisah menjadi **hanya 1 server tunggal** yang efisien, aman, dan hemat memori.
+🌐 **Language**: **English** | [Bahasa Indonesia](README.id.md)
 
 ---
 
-## 🌟 Fitur Utama
+A Node.js & TypeScript MCP Server supporting **Multi-Database (PostgreSQL & MySQL)** environments with a **Main Connection & Sub Connection (Dynamic Routing)** architecture.
+
+Replaces legacy setups that required multiple separate servers with **a single unified server** that is efficient, secure, and memory-friendly.
+
+---
+
+## 🌟 Key Features
 
 1. **Main Connection**
-   - Cukup setup 1 konfigurasi kredensial (host, port, user, password, ssl) untuk satu cluster / server database.
+   - Configure credentials once (host, port, user, password, ssl) for an entire database cluster / server.
 2. **Sub Connection**
-   - Mendaftarkan daftar nama database yang berada di dalam server main tersebut (misal: `db_app`, `db_analytics`, `db_store`).
-3. **Dynamic Connection (Routing Otomatis)**
-   - MCP Client / AI Agent bebas memilih database dengan fleksibel:
-     - Menggunakan alias ID sub-connection: `connectionId: "db_app"`
-     - Format komposit: `connectionId: "postgres_main:my_database"`
-     - Atau dinamis tanpa pre-konfigurasi: `mainId: "postgres_main"`, `database: "nama_db_apapun"`
-4. **Multiple Database Engine**
-   - Mendukung **PostgreSQL** (via `pg.Pool`)
-   - Mendukung **MySQL** (via `mysql2/promise`)
-   - Arsitektur berbasis adapter (`DatabaseAdapter`), mudah ditambah engine lain (SQLite, MSSQL, dll).
+   - Register named databases hosted within that main server (e.g., `db_app`, `db_analytics`, `db_store`).
+3. **Dynamic Connection (Automatic Routing)**
+   - MCP Clients / AI Agents can flexibly target databases:
+     - Using sub-connection alias IDs: `connectionId: "db_app"`
+     - Composite format: `connectionId: "postgres_main:my_database"`
+     - Or dynamically without prior registration: `mainId: "postgres_main"`, `database: "any_db_name"`
+4. **Multiple Database Engines**
+   - Supports **PostgreSQL** (via `pg.Pool`)
+   - Supports **MySQL** (via `mysql2/promise`)
+   - Adapter-based architecture (`DatabaseAdapter`), easily extensible to other engines (SQLite, MSSQL, etc.).
 5. **Connection Pool Caching**
-   - Pool koneksi dibuat secara lazy (on-demand) per database dan disimpan dalam cache, sehingga performa cepat tanpa kebocoran resource.
-6. **Write Rules & Exceptions (Keamanan Mutasi Data)**
-   - Aturan izin penulisan bertingkat: blokir mutasi (`allowWrite: false`) dengan pengecualian operasi tertentu (misal: hanya izinkan `INSERT` & `UPDATE`).
+   - Connection pools are created lazily (on-demand) per database and cached for optimal performance without connection leaks.
+6. **Write Rules & Exceptions (Data Mutation Security)**
+   - Tiered write permissions: block mutations (`allowWrite: false`) with granular exceptions for specific operations (e.g., allow only `INSERT` & `UPDATE`).
 
 ---
 
-## 🛠️ MCP Tools yang Disediakan
+## 🛠️ Available MCP Tools
 
-| Tool Name | Deskripsi | Parameter Utama |
+| Tool Name | Description | Key Parameters |
 | :--- | :--- | :--- |
-| `db_list_connections` | Melihat semua main connection, sub-connection, dan pool aktif | *None* |
-| `db_discover_databases` | Mendeteksi semua database fisik yang ada di server host | `mainId` |
-| `db_sync_databases` | **Crawl semua database dari server & update otomatis ke connections.json** | `mainId` (opsional / 'all'), `removeMissing` |
-| `db_list_tables` | Menampilkan semua tabel & view di database tertentu | `connectionId` atau `mainId` + `database`, `schema` |
-| `db_describe_table` | Menampilkan struktur kolom, tipe data, nullable, primary key | `tableName`, `connectionId` atau `mainId` + `database` |
-| `db_execute_query` | Mengeksekusi query SQL dengan parameter & proteksi Write Rule | `query`, `connectionId` atau `mainId` + `database`, `params`, `maxRows` |
-| `db_test_connection` | Menguji status koneksi & mengambil versi database engine | `connectionId` atau `mainId` + `database` |
-| `db_register_main_connection` | Menambahkan / mengubah main connection secara dinamis saat runtime | `id`, `engine`, `host`, `port`, `user`, `password`, dll |
-| `db_register_sub_connection` | Mendaftarkan alias sub-connection baru secara dinamis | `mainId`, `id`, `database`, `readOnly` |
+| `db_list_connections` | List all main connections, sub-connections, and active pools | *None* |
+| `db_discover_databases` | Discover all physical databases residing on the host server | `mainId` |
+| `db_sync_databases` | **Crawl all databases from host servers & auto-update connections.json** | `mainId` (optional / 'all'), `removeMissing` |
+| `db_list_tables` | List all tables & views in a specified database | `connectionId` or `mainId` + `database`, `schema` |
+| `db_describe_table` | Inspect column structure, data types, nullability, primary keys | `tableName`, `connectionId` or `mainId` + `database` |
+| `db_execute_query` | Execute SQL queries with parameterization & Write Rule protection | `query`, `connectionId` or `mainId` + `database`, `params`, `maxRows` |
+| `db_test_connection` | Test connection status & retrieve database engine version | `connectionId` or `mainId` + `database` |
+| `db_register_main_connection` | Dynamically add or update a main connection at runtime | `id`, `engine`, `host`, `port`, `user`, `password`, etc. |
+| `db_register_sub_connection` | Dynamically register a new sub-connection alias | `mainId`, `id`, `database`, `readOnly` |
 
 ---
 
-## 📁 Struktur Konfigurasi (`connections.json`)
+## 📦 Installation & Setup
 
-Salin file `connections.example.json` menjadi `connections.json` lalu sesuaikan dengan kredensial database Anda:
+### 1. Prerequisites
+Ensure your environment meets the minimum requirements:
+- **Node.js**: `>= 18.0.0`
+- **npm**: `>= 9.0.0`
+- Access to a **PostgreSQL** and/or **MySQL** database server.
+
+### 2. Clone & Install Dependencies
+Clone this repository and install all required dependencies:
+
+```bash
+git clone https://github.com/RifkyR3/mcp_database.git
+cd mcp_database
+npm install
+```
+
+### 3. Build the Project
+Compile TypeScript source files into production-ready JavaScript (`dist/`):
+
+```bash
+npm run build
+```
+
+> **Tip:** You can also run the server directly in development mode without compiling by using `npm run dev`.
+
+### 4. Setup Configuration
+Copy the template configuration file to create your local `connections.json`:
+
+```bash
+# On Linux / macOS / Git Bash:
+cp connections.example.json connections.json
+
+# On Windows Command Prompt / PowerShell:
+copy connections.example.json connections.json
+```
+
+*(Optional)* If you want to use environment variables for direct connections or global settings, copy `.env.example`:
+```bash
+# Linux / macOS / Git Bash:
+cp .env.example .env
+
+# Windows Command Prompt / PowerShell:
+copy .env.example .env
+```
+
+### 5. (Optional) Global CLI Linking
+To make the `mcp-database` command directly accessible anywhere on your system:
+```bash
+npm link
+```
+
+---
+
+## 📁 Configuration Structure (`connections.json`)
+
+Copy `connections.example.json` to `connections.json` and customize it with your database credentials:
 
 ```json
 {
@@ -59,19 +117,19 @@ Salin file `connections.example.json` menjadi `connections.json` lalu sesuaikan 
       "user": "your_pg_user",
       "password": "your_pg_password",
       "defaultDatabase": "postgres",
-      "description": "Server PostgreSQL Utama",
+      "description": "Primary PostgreSQL Server",
       "allowWrite": false,
       "writeExceptions": ["INSERT", "UPDATE"],
       "subConnections": [
         { 
           "id": "app_db", 
           "database": "my_application_db", 
-          "description": "Database Aplikasi Utama" 
+          "description": "Main Application Database" 
         },
         { 
           "id": "analytics_db", 
           "database": "my_analytics_db", 
-          "description": "Database Analitik (Read Only)",
+          "description": "Analytics Database (Read Only)",
           "allowWrite": false,
           "writeExceptions": []
         }
@@ -85,12 +143,12 @@ Salin file `connections.example.json` menjadi `connections.json` lalu sesuaikan 
       "user": "your_mysql_user",
       "password": "your_mysql_password",
       "defaultDatabase": "information_schema",
-      "description": "Server MySQL Cluster",
+      "description": "MySQL Cluster Server",
       "subConnections": [
         { 
           "id": "store_db", 
           "database": "ecommerce_db", 
-          "description": "Database E-commerce" 
+          "description": "E-commerce Database" 
         }
       ]
     }
@@ -98,13 +156,13 @@ Salin file `connections.example.json` menjadi `connections.json` lalu sesuaikan 
 }
 ```
 
-> **Catatan Keamanan:** File `connections.json` dan `mcp_config.json` sudah diabaikan di `.gitignore` agar password dan kredensial Anda tidak bocor ke publik.
+> **Security Note:** `connections.json` and `mcp_config.json` are excluded in `.gitignore` to prevent passwords and credentials from leaking publicly.
 
 ---
 
-## 🚀 Cara Integrasi ke MCP Client
+## 🚀 MCP Client Integration
 
-Di file konfigurasi MCP Anda (misal `mcp_config.json`, Claude Desktop config, atau Antigravity config), tambahkan konfigurasi server:
+In your MCP client configuration file (e.g., `mcp_config.json`, Claude Desktop config, or Antigravity config), add the server configuration:
 
 ```json
 {
@@ -122,7 +180,7 @@ Di file konfigurasi MCP Anda (misal `mcp_config.json`, Claude Desktop config, at
 }
 ```
 
-Atau menggunakan mode development dengan `tsx`:
+Or using development mode with `tsx`:
 ```json
 {
   "mcpServers": {
@@ -143,11 +201,11 @@ Atau menggunakan mode development dengan `tsx`:
 
 ---
 
-## 🎯 Membatasi Spesifik Database Tertentu dari MCP Client
+## 🎯 Restricting Specific Databases from MCP Client
 
-Jika `connections.json` memiliki banyak database, namun Anda hanya ingin mengekspos database tertentu saja (misal hanya `app_db` dan `store_db`), Anda dapat menambahkan argumen atau environment variable di konfigurasi client:
+If `connections.json` contains multiple databases, but you only want to expose specific ones (e.g., only `app_db` and `store_db`), you can add CLI arguments or environment variables in your client configuration:
 
-### Cara 1: Menggunakan Parameter `args` (Rekomendasi)
+### Method 1: Using the `args` Parameter (Recommended)
 ```json
 {
   "mcpServers": {
@@ -165,7 +223,7 @@ Jika `connections.json` memiliki banyak database, namun Anda hanya ingin mengeks
 }
 ```
 
-### Cara 2: Menggunakan Environment Variable `ALLOWED_DATABASES`
+### Method 2: Using the `ALLOWED_DATABASES` Environment Variable
 ```json
 {
   "mcpServers": {
@@ -183,32 +241,32 @@ Jika `connections.json` memiliki banyak database, namun Anda hanya ingin mengeks
 }
 ```
 
-**Keuntungan mode filter:**
-- AI Agent / MCP Client hanya melihat database yang Anda izinkan (menghemat token context).
-- Database lain di luar daftar otomatis terproteksi dan diblokir dari eksekusi query.
-- Main connection yang sesuai tetap otomatis digunakan.
+**Benefits of filtering:**
+- AI Agents / MCP Clients only see the databases you permit (saving context window tokens).
+- Other databases outside the allowed list are automatically protected and query execution is rejected.
+- Corresponding main connection credentials are still automatically resolved.
 
 ---
 
-## 🔒 Write Rules & Write Exceptions (Proteksi Mutasi Database)
+## 🔒 Write Rules & Write Exceptions (Database Mutation Protection)
 
-Fitur ini memungkinkan Anda mengatur izin mutasi data (`allowWrite`) dan pengecualian operasi SQL (`writeExceptions`).
+This feature allows you to configure data mutation permissions (`allowWrite`) and SQL operation exceptions (`writeExceptions`).
 
-### 💡 Konsep Kerja:
+### 💡 How It Works:
 - **`allowWrite: false` (write = false)**:
-  Semua operasi mutasi SQL (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, dll.) akan **DIBLOKIR**.
-  Query pembacaan (`SELECT`, `SHOW`, `DESCRIBE`, `EXPLAIN`) tetap **DIIZINKAN**.
-- **`writeExceptions: ["INSERT", "UPDATE"]` (Pengecualian)**:
-  Jika `allowWrite: false`, maka operasi yang didaftarkan di exceptions (misal `INSERT` dan `UPDATE`) **TETAP DIIZINKAN**, sementara operasi destruktif seperti `DELETE`, `DROP`, `TRUNCATE`, `ALTER` **TETAP DIBLOKIR**.
-- Sebaliknya jika `allowWrite: true` (default), Anda bisa mengisi `writeExceptions: ["DROP", "TRUNCATE"]` untuk secara spesifik memblokir operasi berbahaya tersebut.
+  All SQL mutation operations (`INSERT`, `UPDATE`, `DELETE`, `DROP`, `TRUNCATE`, `ALTER`, etc.) will be **BLOCKED**.
+  Read queries (`SELECT`, `SHOW`, `DESCRIBE`, `EXPLAIN`) remain **ALLOWED**.
+- **`writeExceptions: ["INSERT", "UPDATE"]` (Exceptions)**:
+  When `allowWrite: false`, operations specified in the exceptions list (e.g. `INSERT` and `UPDATE`) are **STILL ALLOWED**, while destructive operations like `DELETE`, `DROP`, `TRUNCATE`, `ALTER` remain **BLOCKED**.
+- Conversely, if `allowWrite: true` (default), you can set `writeExceptions: ["DROP", "TRUNCATE"]` to selectively block those dangerous operations.
 
 ---
 
-### ⚙️ Cara Konfigurasi Write Rules
+### ⚙️ How to Configure Write Rules
 
-Aturan ini dapat dikonfigurasi di 3 level hierarki (prioritas: **Sub-Connection > Main Connection > Global**):
+Rules can be configured across 3 hierarchical levels (priority order: **Sub-Connection > Main Connection > Global**):
 
-#### 1. Level Sub-Connection (Per Database di `connections.json`)
+#### 1. Sub-Connection Level (Per Database in `connections.json`)
 ```json
 {
   "id": "app_db",
@@ -217,9 +275,9 @@ Aturan ini dapat dikonfigurasi di 3 level hierarki (prioritas: **Sub-Connection 
   "writeExceptions": ["INSERT", "UPDATE"]
 }
 ```
-*(Hanya database `app_db` yang menerapkan aturan: INSERT & UPDATE boleh, DELETE & DROP diblokir).*
+*(Only the `app_db` database enforces this rule: INSERT & UPDATE allowed, DELETE & DROP blocked).*
 
-#### 2. Level Main Connection (Satu Server Host di `connections.json`)
+#### 2. Main Connection Level (Per Host Server in `connections.json`)
 ```json
 {
   "postgres_main": {
@@ -235,8 +293,8 @@ Aturan ini dapat dikonfigurasi di 3 level hierarki (prioritas: **Sub-Connection 
 }
 ```
 
-#### 3. Level Global (di `mcp_config.json`)
-Dapat dipasang langsung di `mcp_config.json` melalui argumen CLI:
+#### 3. Global Level (in `mcp_config.json`)
+Can be configured directly in `mcp_config.json` via CLI arguments:
 ```json
 {
   "mcpServers": {
@@ -258,22 +316,22 @@ Dapat dipasang langsung di `mcp_config.json` melalui argumen CLI:
 
 ---
 
-## 🔄 Crawl & Sinkronisasi Database Otomatis
+## 🔄 Automated Database Crawl & Synchronization
 
-Anda dapat melakukan crawl semua database di server host dan memperbarui `connections.json` secara otomatis menggunakan dua cara:
+You can crawl all databases on host servers and update `connections.json` automatically using two methods:
 
-### 1. Lewat Terminal / CLI
+### 1. Via Terminal / CLI
 ```bash
-# Sinkronkan semua main connection
+# Sync all main connections
 npm run sync
 
-# Atau sinkronkan spesifik untuk satu main connection saja
+# Or sync a specific main connection
 npm run sync postgres_main
 npm run sync mysql_cluster
 ```
 
-### 2. Lewat MCP Tool
-Panggil tool `db_sync_databases` dari MCP client / AI Agent dengan parameter:
+### 2. Via MCP Tool
+Invoke the `db_sync_databases` tool from your MCP client / AI Agent with parameters:
 ```json
 {
   "mainId": "all",
@@ -283,19 +341,19 @@ Panggil tool `db_sync_databases` dari MCP client / AI Agent dengan parameter:
 
 ---
 
-## 🧪 Testing & Verifikasi
+## 🧪 Testing & Verification
 
-Proyek ini telah dilengkapi dengan script pengujian:
+This project includes test scripts:
 
 ```bash
-# 1. Tes konektivitas database
+# 1. Test database connectivity
 npm test
 
-# 2. Tes Write Rules & Write Exceptions
+# 2. Test Write Rules & Write Exceptions
 npm run test:write
 ```
 
 ---
 
-## 📄 Lisensi
+## 📄 License
 MIT License
