@@ -1,6 +1,6 @@
 {
   "name": "mcp-database-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Multi-database MCP Server with Dynamic Connections and Main/Sub connection architecture",
   "type": "module",
   "main": "dist/index.js",
@@ -20,7 +20,9 @@
     "dist",
     "README.md",
     "README.id.md",
-    "LICENSE"
+    "LICENSE",
+    "connections.example.json",
+    ".env.example"
   ],
   "engines": {
     "node": ">=18.0.0"

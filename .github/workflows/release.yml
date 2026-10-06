@@ -65,8 +65,8 @@ jobs:
         run: |
           mkdir -p release-artifacts
           TAG="${{ steps.release_tag.outputs.tag }}"
-          tar -czf "release-artifacts/mcp-database-server-${TAG}.tar.gz" dist/ package.json package-lock.json README.md README.id.md LICENSE
-          zip -r "release-artifacts/mcp-database-server-${TAG}.zip" dist/ package.json package-lock.json README.md README.id.md LICENSE
+          tar -czf "release-artifacts/mcp-database-server-${TAG}.tar.gz" dist/ package.json package-lock.json README.md README.id.md LICENSE connections.example.json .env.example
+          zip -r "release-artifacts/mcp-database-server-${TAG}.zip" dist/ package.json package-lock.json README.md README.id.md LICENSE connections.example.json .env.example
 
       - name: Create and publish GitHub Release
         uses: softprops/action-gh-release@v2

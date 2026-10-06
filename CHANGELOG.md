@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.0.1] - 2026-10-06
+
+### Added
+- **Release Packaging Assets**:
+  - Included configuration templates (`connections.example.json`, `.env.example`) directly inside GitHub release archive packages (`.tar.gz` and `.zip`).
+  - Added example configuration templates to the `files` array in `package.json` for npm package distributions.
+
+### Changed
+- **Installation Guide**:
+  - Updated both `README.md` and `README.id.md` to highlight **Pre-built GitHub Release** as the primary/recommended installation method.
+  - Restructured **Install from Source** as Method 2 for developers and contributors.
+  - Added MCP client configuration example for globally linked CLI (`mcp-database`).
+
+---
+
 ## [1.0.0] - 2026-10-05
 
 ### Added

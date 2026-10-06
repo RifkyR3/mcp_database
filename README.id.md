@@ -54,55 +54,107 @@ Menggantikan setup lama yang membutuhkan banyak server terpisah menjadi **hanya 
 
 ## 📦 Instalasi & Persiapan
 
-### 1. Prasyarat Sistem
+### Prasyarat Sistem
 Pastikan lingkungan Anda memenuhi spesifikasi minimum:
 - **Node.js**: Versi `>= 18.0.0`
 - **npm**: Versi `>= 9.0.0`
 - Akses ke server database **PostgreSQL** dan/atau **MySQL**.
 
-### 2. Clone Repository & Pasang Dependensi
-Clone repository ini lalu pasang seluruh dependensi proyek:
+---
 
-```bash
-git clone https://github.com/RifkyR3/mcp_database.git
-cd mcp_database
-npm install
-```
+### Metode 1: Menggunakan Pre-built Release (Direkomendasikan)
 
-### 3. Build Proyek
-Kompilasi kode sumber TypeScript ke JavaScript siap pakai (`dist/`):
+Paket pre-built release sudah menyertakan JavaScript yang siap pakai (`dist/`), sehingga Anda **tidak membutuhkan compiler TypeScript** maupun dependensi pengembangan (devDependencies).
 
-```bash
-npm run build
-```
+1. **Download & Ekstrak**
+   Unduh paket rilis terbaru (`.tar.gz` atau `.zip`) dari [GitHub Releases](https://github.com/RifkyR3/mcp_database/releases):
 
-> **Tip:** Anda juga dapat langsung menjalankan server dalam mode pengembangan tanpa perlu build: `npm run dev`.
+   - **Linux / macOS / Git Bash:**
+     ```bash
+     mkdir -p mcp_database && cd mcp_database
+     # Ekstrak file tar.gz yang telah diunduh ke direktori saat ini:
+     tar -xzf /path/to/mcp-database-server-*.tar.gz
+     ```
 
-### 4. Siapkan File Konfigurasi
-Salin file template konfigurasi untuk membuat file `connections.json` lokal Anda:
+   - **Windows (PowerShell):**
+     ```powershell
+     Expand-Archive -Path .\mcp-database-server-*.zip -DestinationPath .\mcp_database
+     cd mcp_database
+     ```
 
-```bash
-# Di Linux / macOS / Git Bash:
-cp connections.example.json connections.json
+2. **Pasang Dependensi Produksi**
+   Cukup pasang dependensi runtime (tanpa devDependencies):
+   ```bash
+   npm install --omit=dev
+   ```
 
-# Di Windows Command Prompt / PowerShell:
-copy connections.example.json connections.json
-```
+3. **Siapkan File Konfigurasi**
+   Salin template konfigurasi untuk membuat file `connections.json` lokal Anda:
+   ```bash
+   # Di Linux / macOS / Git Bash:
+   cp connections.example.json connections.json
 
-*(Opsional)* Jika Anda ingin menggunakan environment variable untuk koneksi langsung atau konfigurasi global, salin juga `.env.example`:
-```bash
-# Di Linux / macOS / Git Bash:
-cp .env.example .env
+   # Di Windows Command Prompt / PowerShell:
+   copy connections.example.json connections.json
+   ```
 
-# Di Windows Command Prompt / PowerShell:
-copy .env.example .env
-```
+   *(Opsional)* Salin juga `.env.example` jika ingin menggunakan environment variable:
+   ```bash
+   # Di Linux / macOS / Git Bash:
+   cp .env.example .env
 
-### 5. (Opsional) Link CLI Global
-Untuk menjadikan perintah `mcp-database` dapat langsung dipanggil di mana saja secara global:
-```bash
-npm link
-```
+   # Di Windows Command Prompt / PowerShell:
+   copy .env.example .env
+   ```
+
+4. **(Opsional) Link CLI Global**
+   Untuk menjadikan perintah `mcp-database` dapat langsung dipanggil di mana saja secara global:
+   ```bash
+   npm link
+   ```
+
+---
+
+### Metode 2: Manual dari Source Code (Development)
+
+Gunakan metode ini jika Anda ingin berkontribusi, memodifikasi kode sumber, atau mencoba fitur terbaru langsung dari repository Git:
+
+1. **Clone Repository & Pasang Dependensi**
+   ```bash
+   git clone https://github.com/RifkyR3/mcp_database.git
+   cd mcp_database
+   npm install
+   ```
+
+2. **Build Proyek**
+   Kompilasi kode sumber TypeScript ke JavaScript siap pakai (`dist/`):
+   ```bash
+   npm run build
+   ```
+   > **Tip:** Anda juga dapat langsung menjalankan server dalam mode pengembangan tanpa perlu build: `npm run dev`.
+
+3. **Siapkan File Konfigurasi**
+   ```bash
+   # Di Linux / macOS / Git Bash:
+   cp connections.example.json connections.json
+
+   # Di Windows Command Prompt / PowerShell:
+   copy connections.example.json connections.json
+   ```
+
+   *(Opsional)* Salin `.env.example`:
+   ```bash
+   # Di Linux / macOS / Git Bash:
+   cp .env.example .env
+
+   # Di Windows Command Prompt / PowerShell:
+   copy .env.example .env
+   ```
+
+4. **(Opsional) Link CLI Global**
+   ```bash
+   npm link
+   ```
 
 ---
 
@@ -176,6 +228,20 @@ Di file konfigurasi MCP Anda (misal `mcp_config.json`, Claude Desktop config, at
       "args": [
         "/path/to/mcp_database/dist/index.js"
       ],
+      "env": {
+        "MCP_DB_CONFIG_PATH": "/path/to/mcp_database/connections.json"
+      }
+    }
+  }
+}
+```
+
+Atau jika sudah di-link secara global via `npm link`:
+```json
+{
+  "mcpServers": {
+    "mcp_database": {
+      "command": "mcp-database",
       "env": {
         "MCP_DB_CONFIG_PATH": "/path/to/mcp_database/connections.json"
       }

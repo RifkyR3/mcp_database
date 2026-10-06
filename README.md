@@ -54,55 +54,107 @@ Replaces legacy setups that required multiple separate servers with **a single u
 
 ## 📦 Installation & Setup
 
-### 1. Prerequisites
+### Prerequisites
 Ensure your environment meets the minimum requirements:
 - **Node.js**: `>= 18.0.0`
 - **npm**: `>= 9.0.0`
 - Access to a **PostgreSQL** and/or **MySQL** database server.
 
-### 2. Clone & Install Dependencies
-Clone this repository and install all required dependencies:
+---
 
-```bash
-git clone https://github.com/RifkyR3/mcp_database.git
-cd mcp_database
-npm install
-```
+### Method 1: Download Pre-built Release (Recommended)
 
-### 3. Build the Project
-Compile TypeScript source files into production-ready JavaScript (`dist/`):
+Pre-built releases come with pre-compiled JavaScript (`dist/`), requiring **no TypeScript compiler** or devDependencies.
 
-```bash
-npm run build
-```
+1. **Download & Extract**
+   Download the latest release archive (`.tar.gz` or `.zip`) from [GitHub Releases](https://github.com/RifkyR3/mcp_database/releases):
 
-> **Tip:** You can also run the server directly in development mode without compiling by using `npm run dev`.
+   - **Linux / macOS / Git Bash:**
+     ```bash
+     mkdir -p mcp_database && cd mcp_database
+     # Extract the downloaded archive into the directory:
+     tar -xzf /path/to/mcp-database-server-*.tar.gz
+     ```
 
-### 4. Setup Configuration
-Copy the template configuration file to create your local `connections.json`:
+   - **Windows (PowerShell):**
+     ```powershell
+     Expand-Archive -Path .\mcp-database-server-*.zip -DestinationPath .\mcp_database
+     cd mcp_database
+     ```
 
-```bash
-# On Linux / macOS / Git Bash:
-cp connections.example.json connections.json
+2. **Install Production Dependencies**
+   Install only runtime dependencies without development packages:
+   ```bash
+   npm install --omit=dev
+   ```
 
-# On Windows Command Prompt / PowerShell:
-copy connections.example.json connections.json
-```
+3. **Setup Configuration**
+   Copy the example configuration file to create your local `connections.json`:
+   ```bash
+   # Linux / macOS / Git Bash:
+   cp connections.example.json connections.json
 
-*(Optional)* If you want to use environment variables for direct connections or global settings, copy `.env.example`:
-```bash
-# Linux / macOS / Git Bash:
-cp .env.example .env
+   # Windows Command Prompt / PowerShell:
+   copy connections.example.json connections.json
+   ```
 
-# Windows Command Prompt / PowerShell:
-copy .env.example .env
-```
+   *(Optional)* Copy `.env.example` if using environment variables:
+   ```bash
+   # Linux / macOS / Git Bash:
+   cp .env.example .env
 
-### 5. (Optional) Global CLI Linking
-To make the `mcp-database` command directly accessible anywhere on your system:
-```bash
-npm link
-```
+   # Windows Command Prompt / PowerShell:
+   copy .env.example .env
+   ```
+
+4. **(Optional) Global CLI Linking**
+   To make the `mcp-database` command directly accessible anywhere on your system:
+   ```bash
+   npm link
+   ```
+
+---
+
+### Method 2: Install from Source (Manual / Development)
+
+Use this method if you want to contribute, modify source files, or run the bleeding-edge version directly from the repository.
+
+1. **Clone Repository & Install Dependencies**
+   ```bash
+   git clone https://github.com/RifkyR3/mcp_database.git
+   cd mcp_database
+   npm install
+   ```
+
+2. **Build the Project**
+   Compile TypeScript source files into production-ready JavaScript (`dist/`):
+   ```bash
+   npm run build
+   ```
+   > **Tip:** You can also run the server directly in development mode without compiling by using `npm run dev`.
+
+3. **Setup Configuration**
+   ```bash
+   # Linux / macOS / Git Bash:
+   cp connections.example.json connections.json
+
+   # Windows Command Prompt / PowerShell:
+   copy connections.example.json connections.json
+   ```
+
+   *(Optional)* Copy `.env.example`:
+   ```bash
+   # Linux / macOS / Git Bash:
+   cp .env.example .env
+
+   # Windows Command Prompt / PowerShell:
+   copy .env.example .env
+   ```
+
+4. **(Optional) Global CLI Linking**
+   ```bash
+   npm link
+   ```
 
 ---
 
@@ -176,6 +228,20 @@ In your MCP client configuration file (e.g., `mcp_config.json`, Claude Desktop c
       "args": [
         "/path/to/mcp_database/dist/index.js"
       ],
+      "env": {
+        "MCP_DB_CONFIG_PATH": "/path/to/mcp_database/connections.json"
+      }
+    }
+  }
+}
+```
+
+Or if linked globally via `npm link`:
+```json
+{
+  "mcpServers": {
+    "mcp_database": {
+      "command": "mcp-database",
       "env": {
         "MCP_DB_CONFIG_PATH": "/path/to/mcp_database/connections.json"
       }
