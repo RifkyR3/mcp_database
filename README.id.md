@@ -2,6 +2,10 @@
 
 🌐 **Bahasa**: [English](README.md) | **Bahasa Indonesia**
 
+[![CI](https://github.com/RifkyR3/mcp_database/actions/workflows/ci.yml/badge.svg)](https://github.com/RifkyR3/mcp_database/actions/workflows/ci.yml)
+[![Release](https://github.com/RifkyR3/mcp_database/actions/workflows/release.yml/badge.svg)](https://github.com/RifkyR3/mcp_database/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ---
 
 MCP Server berbasis Node.js & TypeScript yang mendukung **Multi-Database (PostgreSQL & MySQL)** dengan arsitektur **Main Connection & Sub Connection (Dynamic Routing)**.

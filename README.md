@@ -2,6 +2,10 @@
 
 🌐 **Language**: **English** | [Bahasa Indonesia](README.id.md)
 
+[![CI](https://github.com/RifkyR3/mcp_database/actions/workflows/ci.yml/badge.svg)](https://github.com/RifkyR3/mcp_database/actions/workflows/ci.yml)
+[![Release](https://github.com/RifkyR3/mcp_database/actions/workflows/release.yml/badge.svg)](https://github.com/RifkyR3/mcp_database/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ---
 
 A Node.js & TypeScript MCP Server supporting **Multi-Database (PostgreSQL & MySQL)** environments with a **Main Connection & Sub Connection (Dynamic Routing)** architecture.

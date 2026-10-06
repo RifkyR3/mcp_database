@@ -7,6 +7,14 @@
   "bin": {
     "mcp-database": "./dist/index.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RifkyR3/mcp_database.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RifkyR3/mcp_database/issues"
+  },
+  "homepage": "https://github.com/RifkyR3/mcp_database#readme",
   "license": "MIT",
   "files": [
     "dist",
@@ -19,11 +27,14 @@
   },
   "scripts": {
     "build": "rimraf dist && tsc",
+    "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "sync": "tsx src/sync.ts",
-    "test": "tsx test/test-connection.ts",
-    "test:write": "tsx test/test-write-rules.ts"
+    "test": "tsx test/test-unit.ts",
+    "test:integration": "tsx test/test-connection.ts",
+    "test:write": "tsx test/test-write-rules.ts",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "mcp",
